@@ -96,7 +96,7 @@ export default function ScheduleView({ schedule, gameType, setView }) {
         return byTeam;
     }, [schedule, gameType]);
 
-    // PDF Export Function
+    // PDF Export Function (with fixes)
     const exportToPDF = async () => {
         if (isExportingPdf) return;
         if (!schedule || !schedule.games) return;
@@ -123,97 +123,107 @@ export default function ScheduleView({ schedule, gameType, setView }) {
             const doc = new jsPDF();
             const pageHeight = doc.internal.pageSize.height;
             const themeColor = "#6BCB77";
+            let lastY = 25; // Initial Y position
 
-            const addHeaderAndFooter = () => {
-                doc.setFontSize(20);
-                doc.setFont('helvetica', 'bold');
-                doc.text("Sports Tournament Schedule", doc.internal.pageSize.width / 2, 15, { align: 'center' });
-                doc.setDrawColor(themeColor);
-                doc.line(15, 18, doc.internal.pageSize.width - 15, 18);
-                const pageCount = doc.internal.getNumberOfPages();
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'normal');
-                for (let i = 1; i <= pageCount; i++) {
-                    doc.setPage(i);
-                    const footerText = `Page ${i} of ${pageCount} | Generated: ${new Date().toLocaleDateString()}`;
-                    doc.text(footerText, doc.internal.pageSize.width / 2, pageHeight - 10, { align: 'center' });
-                }
-            };
-            
+            // --- Header ---
+            doc.setFontSize(20);
+            doc.setFont('helvetica', 'bold');
+            doc.text("Match Flow", doc.internal.pageSize.width / 2, 15, { align: 'center' });
+            doc.setDrawColor(themeColor);
+            doc.line(15, 18, doc.internal.pageSize.width - 15, 18);
+
+            // --- Schedule by Round ---
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
-            doc.text("Schedule by Round", 15, 30);
-            let lastY = 35;
+            doc.text("Schedule by Round", 15, lastY + 10);
+            lastY += 15;
+
             Object.entries(memoizedScheduleByRound).forEach(([round, games]) => {
                 const isRoundComplete = completedRounds.includes(parseInt(round, 10));
                 const head = [['Court', 'Team 1', 'Team 2']];
                 const body = games.map(game => [`Court ${game.court}`, game.team1.map(p => p.name).join(' & '), game.team2.map(p => p.name).join(' & ')]);
+                
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`${isRoundComplete ? "✅ " : ""}Round ${round}`, 15, lastY + 5);
+                lastY += 7;
+
                 doc.autoTable({
-                    head, body, startY: lastY, headStyles: { fillColor: themeColor }, tableLineColor: [230, 230, 230], tableLineWidth: 0.1, margin: { top: 25 },
-                    didParseCell: (data) => {
-                        if (data.row.index === 0 && data.cell.section === 'head') {
-                           doc.setFontSize(12); doc.setFont('helvetica', 'bold');
-                           doc.text(`${isRoundComplete ? "✅ " : ""}Round ${round}`, 15, data.cell.y - 4);
-                        }
-                    }
+                    head, body, startY: lastY, headStyles: { fillColor: themeColor }, tableLineColor: [230, 230, 230], tableLineWidth: 0.1,
                 });
                 lastY = doc.autoTable.previous.finalY + 10;
             });
-            
+
+            // --- Schedule by Court ---
             doc.addPage();
+            lastY = 25;
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
-            doc.text("Schedule by Court", 15, 30);
-            lastY = 35;
+            doc.text("Schedule by Court", 15, lastY);
+            lastY += 5;
+
             Object.entries(memoizedScheduleByCourt).forEach(([court, games]) => {
                 const head = [['Round', 'Team 1', 'Team 2']];
                 const body = games.map(game => {
                     const isRoundComplete = completedRounds.includes(game.round);
                     return [`${isRoundComplete ? "✅ " : ""}Round ${game.round}`, game.team1.map(p => p.name).join(' & '), game.team2.map(p => p.name).join(' & ')];
                 });
+
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`Court ${court}`, 15, lastY + 5);
+                lastY += 7;
+
                 doc.autoTable({
-                    head, body, startY: lastY, headStyles: { fillColor: themeColor }, tableLineColor: [230, 230, 230], tableLineWidth: 0.1, margin: { top: 25 },
-                    didParseCell: (data) => {
-                        if (data.row.index === 0 && data.cell.section === 'head') {
-                           doc.setFontSize(12); doc.setFont('helvetica', 'bold');
-                           doc.text(`Court ${court}`, 15, data.cell.y - 4);
-                        }
-                    }
-                });
-                lastY = doc.autoTable.previous.finalY + 10;
-            });
-            
-            doc.addPage();
-            const entityType = gameType === 'doubles' ? 'Team' : 'Player';
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.text(`Schedule by ${entityType}`, 15, 30);
-            lastY = 35;
-            const entityData = gameType === 'doubles' ? memoizedScheduleByTeam : memoizedScheduleByPlayer;
-            Object.values(entityData).sort((a,b) => a.name.localeCompare(b.name)).forEach(entity => {
-                const head = [['Round', 'Court', 'Opponent']];
-                const body = entity.games.map(game => {
-                     const isRoundComplete = completedRounds.includes(game.round);
-                     const opponent = gameType === 'doubles' ? game.opponent : (game.team1.some(p => p.id === entity.id) ? game.team2 : game.team1);
-                     return [`${isRoundComplete ? "✅ " : ""}Round ${game.round}`, `Court ${game.court}`, opponent.map(p => p.name).join(' & ')];
-                });
-                if (lastY + (body.length * 10) + 20 > pageHeight) {
-                    doc.addPage();
-                    lastY = 30;
-                }
-                doc.autoTable({
-                    head, body, startY: lastY, headStyles: { fillColor: themeColor }, tableLineColor: [230, 230, 230], tableLineWidth: 0.1, margin: { top: 25 },
-                    didParseCell: (data) => {
-                        if (data.row.index === 0 && data.cell.section === 'head') {
-                           doc.setFontSize(12); doc.setFont('helvetica', 'bold');
-                           doc.text(entity.name, 15, data.cell.y - 4);
-                        }
-                    }
+                    head, body, startY: lastY, headStyles: { fillColor: themeColor }, tableLineColor: [230, 230, 230], tableLineWidth: 0.1,
                 });
                 lastY = doc.autoTable.previous.finalY + 10;
             });
 
-            addHeaderAndFooter();
+            // --- Schedule by Player/Team ---
+            doc.addPage();
+            lastY = 25;
+            const entityType = gameType === 'doubles' ? 'Team' : 'Player';
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Schedule by ${entityType}`, 15, lastY);
+            lastY += 5;
+            
+            const entityData = gameType === 'doubles' ? memoizedScheduleByTeam : memoizedScheduleByPlayer;
+            Object.values(entityData).sort((a, b) => a.name.localeCompare(b.name)).forEach(entity => {
+                const head = [['Round', 'Court', 'Opponent']];
+                const body = entity.games.map(game => {
+                    const isRoundComplete = completedRounds.includes(game.round);
+                    const opponent = gameType === 'doubles' ? game.opponent : (game.team1.some(p => p.id === entity.id) ? game.team2 : game.team1);
+                    return [`${isRoundComplete ? "✅ " : ""}Round ${game.round}`, `Court ${game.court}`, opponent.map(p => p.name).join(' & ')];
+                });
+
+                if (lastY + (body.length * 10) + 30 > pageHeight) {
+                    doc.addPage();
+                    lastY = 25;
+                }
+
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                doc.text(entity.name, 15, lastY + 5);
+                lastY += 7;
+
+                doc.autoTable({
+                    head, body, startY: lastY, headStyles: { fillColor: themeColor }, tableLineColor: [230, 230, 230], tableLineWidth: 0.1,
+                });
+                lastY = doc.autoTable.previous.finalY + 10;
+            });
+
+            // --- Footer with Page Numbers ---
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                const footerText = `Page ${i} of ${pageCount} | Generated: ${new Date().toLocaleDateString()}`;
+                doc.text(footerText, doc.internal.pageSize.width / 2, pageHeight - 10, { align: 'center' });
+            }
+
             doc.save('sports_schedule.pdf');
         } catch (err) {
             console.error(err);
@@ -227,8 +237,8 @@ export default function ScheduleView({ schedule, gameType, setView }) {
         <div className="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen font-sans p-4 md:p-6">
             <div className="max-w-4xl mx-auto">
                 <header className="mb-6 text-center">
-                    <h1 className="text-3xl md:text-4xl font-bold text-[#6BCB77] dark:text-[#86d994]">Tournament Schedule</h1>
-                    <p className="text-gray-600 dark:text-gray-400 mt-1">Here is your generated game plan.</p>
+                    <h1 className="text-3xl md:text-4xl font-bold text-[#6BCB77] dark:text-[#86d994]">Match Flow</h1>
+                    <p className="text-gray-600 dark:text-gray-400 mt-1">Generated Schedule</p>
                 </header>
 
                 <div className="flex justify-center mb-6">

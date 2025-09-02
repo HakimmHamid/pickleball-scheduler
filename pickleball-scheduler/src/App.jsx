@@ -3,7 +3,7 @@ import PlayerList from './components/PlayerList';
 import Settings from './components/Settings';
 import ScheduleView from './components/ScheduleView';
 import { generateSchedule as generate } from './utils/scheduleGenerator';
-import { UsersIcon, ChevronUpIcon, ChevronDownIcon } from './components/Icons';
+import { ChevronUpIcon, ChevronDownIcon } from './components/Icons';
 
 export default function App() {
     const [players, setPlayers] = useState([]);
@@ -72,15 +72,15 @@ export default function App() {
         <div className="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen font-sans p-4">
             <div className="max-w-md mx-auto">
                 <header className="mb-4 text-center">
-                    <h1 className="text-2xl md:text-3xl font-bold text-[#6BCB77] dark:text-[#86d994]">Sports Scheduler</h1>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm">Create a schedule in seconds.</p>
+                    <h1 className="text-2xl md:text-3xl font-bold text-[#6BCB77] dark:text-[#86d994]">Match Flow</h1>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">Smart & reliable scheduling from brackets to court assignments</p>
                 </header>
 
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg space-y-2">
                     {/* --- Player Section --- */}
                     <div className="border-b dark:border-gray-700">
                         <button onClick={() => setOpenSection(openSection === 'players' ? null : 'players')} className="w-full flex justify-between items-center p-4">
-                            <h2 className="text-lg font-semibold flex items-center"><UsersIcon className="mr-2 text-[#6BCB77]"/>Player List ({players.length})</h2>
+                            <h2 className="text-lg font-semibold flex items-center">Player List ({players.length})</h2>
                             {openSection === 'players' ? <ChevronUpIcon /> : <ChevronDownIcon />}
                         </button>
                         {openSection === 'players' && <PlayerList players={players} setPlayers={setPlayers} />}
@@ -104,7 +104,7 @@ export default function App() {
                         disabled={players.length < (gameType === 'doubles' ? 4 : 3)}
                         className="w-full bg-[#6BCB77] hover:bg-[#5aa764] text-white text-lg font-bold py-3 px-6 rounded-lg transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
-                        Generate Tournament
+                        Generate Schedule
                     </button>
                     <div className="text-center mt-3">
                         <button onClick={startNew} className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 text-xs font-medium transition-colors">
@@ -114,7 +114,7 @@ export default function App() {
                 </div>
 
                 <footer className="text-center text-gray-500 dark:text-gray-400 text-xs mt-4">
-                    <p>&copy; {new Date().getFullYear()} Sports Scheduler</p>
+                    <p>&copy; {new Date().getFullYear()} Match Flow</p>
                 </footer>
             </div>
         </div>
