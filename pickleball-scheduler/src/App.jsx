@@ -16,7 +16,7 @@ export default function App() {
 
     // Load data from localStorage on initial render
     useEffect(() => {
-        document.title = "Sports Tournament Scheduler";
+        document.title = "Match Flow";
         try {
             const savedPlayers = localStorage.getItem('sportsSchedulerPlayers');
             if (savedPlayers) setPlayers(JSON.parse(savedPlayers));
