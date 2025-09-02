@@ -28,7 +28,7 @@ const CheckIcon = ({ className = "w-5 h-5" }) => (
     </svg>
 );
 const ChevronDownIcon = ({ className = "w-6 h-6" }) => (
-    <svg xmlns="http://www.w.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
     </svg>
 );
@@ -69,6 +69,8 @@ export default function App() {
     const [openSection, setOpenSection] = useState('players'); // 'players' or 'settings'
     const [collapsedSections, setCollapsedSections] = useState([]);
     const [completedRounds, setCompletedRounds] = useState([]);
+    const [pdfScriptsLoaded, setPdfScriptsLoaded] = useState(false);
+    const [isExportingPdf, setIsExportingPdf] = useState(false);
 
     // --- Toggle collapsible sections in schedule view ---
     const toggleSectionCollapse = (sectionId) => {
@@ -89,8 +91,12 @@ export default function App() {
         );
     };
 
-    // --- Effects for Local Storage ---
+    // --- Effects for Local Storage & Script Loading ---
     useEffect(() => {
+        // Set the document title
+        document.title = "Pickleball Tournament Scheduler";
+        
+        // Load data from localStorage
         try {
             const savedPlayers = localStorage.getItem('pickleballPlayers');
             if (savedPlayers) setPlayers(JSON.parse(savedPlayers));
@@ -106,11 +112,12 @@ export default function App() {
 
         } catch (e) {
             console.error("Failed to parse from localStorage", e);
-            // In case of corrupted data, clear it
-            localStorage.removeItem('pickleballPlayers');
-            localStorage.removeItem('pickleballGameType');
-            localStorage.removeItem('pickleballNumCourts');
-            localStorage.removeItem('pickleballCompletedRounds');
+            localStorage.clear();
+        }
+
+        // Check if PDF scripts are already in the document head
+        if (window.jspdf && window.jspdf.jsPDF.autoTable) {
+            setPdfScriptsLoaded(true);
         }
     }, []);
 
@@ -139,7 +146,6 @@ export default function App() {
             .map(line =>
                 line
                     .trim()
-                    // Removes list prefixes like "1.", "1)", "* ", "- "
                     .replace(/^\s*\d+[\.\-\)]?\s*|\s*[\*\-]\s*/, '')
                     .trim()
             )
@@ -370,69 +376,131 @@ export default function App() {
         }
     };
 
-    // --- PDF Export ---
-    const exportToPDF = () => {
-        if (typeof window.jspdf === 'undefined') {
-            setError("PDF library not found. Cannot export schedule.");
-            return;
-        }
+    // --- PDF Export (Professional Version) ---
+    const exportToPDF = async () => {
+        if (isExportingPdf) return;
         if (!schedule || !schedule.games) return;
         setError('');
+        setIsExportingPdf(true);
 
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        const gamesByRound = memoizedScheduleByRound;
-        let yPosition = 20;
-        const leftMargin = 15;
-        const lineHeight = 7;
-        const pageHeight = doc.internal.pageSize.height;
+        const loadScript = (src) => new Promise((resolve, reject) => {
+            if (document.querySelector(`script[src="${src}"]`)) return resolve();
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = () => reject(new Error(`Script load error for ${src}`));
+            document.head.appendChild(script);
+        });
 
-        doc.setFontSize(22);
-        doc.setFont('helvetica', 'bold');
-        doc.text("Pickleball Tournament Schedule", doc.internal.pageSize.width / 2, yPosition, { align: 'center' });
-        yPosition += lineHeight * 2;
-
-        Object.keys(gamesByRound).sort((a,b) => a-b).forEach(round => {
-            if (yPosition > pageHeight - 30) {
-                doc.addPage();
-                yPosition = 20;
+        try {
+            if (!pdfScriptsLoaded) {
+                await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+                await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
+                setPdfScriptsLoaded(true);
             }
-            const roundNum = parseInt(round, 10);
-            const isComplete = completedRounds.includes(roundNum);
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const pageHeight = doc.internal.pageSize.height;
+            const themeColor = "#6BCB77";
+
+            const addHeaderAndFooter = () => {
+                doc.setFontSize(20);
+                doc.setFont('helvetica', 'bold');
+                doc.text("Pickleball Tournament Schedule", doc.internal.pageSize.width / 2, 15, { align: 'center' });
+                doc.setDrawColor(themeColor);
+                doc.line(15, 18, doc.internal.pageSize.width - 15, 18);
+                const pageCount = doc.internal.getNumberOfPages();
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    const footerText = `Page ${i} of ${pageCount} | Generated: ${new Date().toLocaleDateString()}`;
+                    doc.text(footerText, doc.internal.pageSize.width / 2, pageHeight - 10, { align: 'center' });
+                }
+            };
             
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
-            doc.text(`${isComplete ? "✅ " : ""}Round ${round}`, leftMargin, yPosition);
-            yPosition += lineHeight * 1.5;
-
-            doc.setFontSize(12);
-            doc.setFont('helvetica', 'normal');
-
-            gamesByRound[round].forEach(game => {
-                if (yPosition > pageHeight - 20) {
-                    doc.addPage();
-                    yPosition = 20;
-                }
-                const team1Name = game.team1.map(p => p.name).join(' & ');
-                const team2Name = game.team2.map(p => p.name).join(' & ');
-                const gameText = `Court ${game.court}: ${team1Name} vs ${team2Name}`;
-                doc.text(gameText, leftMargin + 5, yPosition);
-                yPosition += lineHeight;
+            doc.text("Schedule by Round", 15, 30);
+            let lastY = 35;
+            Object.entries(memoizedScheduleByRound).forEach(([round, games]) => {
+                const isRoundComplete = completedRounds.includes(parseInt(round, 10));
+                const head = [['Court', 'Team 1', 'Team 2']];
+                const body = games.map(game => [`Court ${game.court}`, game.team1.map(p => p.name).join(' & '), game.team2.map(p => p.name).join(' & ')]);
+                doc.autoTable({
+                    head, body, startY: lastY, headStyles: { fillColor: themeColor }, tableLineColor: [230, 230, 230], tableLineWidth: 0.1, margin: { top: 25 },
+                    didParseCell: (data) => {
+                        if (data.row.index === 0 && data.cell.section === 'head') {
+                           doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+                           doc.text(`${isRoundComplete ? "✅ " : ""}Round ${round}`, 15, data.cell.y - 4);
+                        }
+                    }
+                });
+                lastY = doc.autoTable.previous.finalY + 10;
             });
-            yPosition += lineHeight;
-        });
+            
+            doc.addPage();
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.text("Schedule by Court", 15, 30);
+            lastY = 35;
+            Object.entries(memoizedScheduleByCourt).forEach(([court, games]) => {
+                const head = [['Round', 'Team 1', 'Team 2']];
+                const body = games.map(game => {
+                    const isRoundComplete = completedRounds.includes(game.round);
+                    return [`${isRoundComplete ? "✅ " : ""}Round ${game.round}`, game.team1.map(p => p.name).join(' & '), game.team2.map(p => p.name).join(' & ')];
+                });
+                doc.autoTable({
+                    head, body, startY: lastY, headStyles: { fillColor: themeColor }, tableLineColor: [230, 230, 230], tableLineWidth: 0.1, margin: { top: 25 },
+                    didParseCell: (data) => {
+                        if (data.row.index === 0 && data.cell.section === 'head') {
+                           doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+                           doc.text(`Court ${court}`, 15, data.cell.y - 4);
+                        }
+                    }
+                });
+                lastY = doc.autoTable.previous.finalY + 10;
+            });
+            
+            doc.addPage();
+            const entityType = gameType === 'doubles' ? 'Team' : 'Player';
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Schedule by ${entityType}`, 15, 30);
+            lastY = 35;
+            const entityData = gameType === 'doubles' ? memoizedScheduleByTeam : memoizedScheduleByPlayer;
+            Object.values(entityData).sort((a,b) => a.name.localeCompare(b.name)).forEach(entity => {
+                const head = [['Round', 'Court', 'Opponent']];
+                const body = entity.games.map(game => {
+                     const isRoundComplete = completedRounds.includes(game.round);
+                     const opponent = gameType === 'doubles' ? game.opponent : (game.team1.some(p => p.id === entity.id) ? game.team2 : game.team1);
+                     return [`${isRoundComplete ? "✅ " : ""}Round ${game.round}`, `Court ${game.court}`, opponent.map(p => p.name).join(' & ')];
+                });
+                if (lastY + (body.length * 10) + 20 > pageHeight) {
+                    doc.addPage();
+                    lastY = 30;
+                }
+                doc.autoTable({
+                    head, body, startY: lastY, headStyles: { fillColor: themeColor }, tableLineColor: [230, 230, 230], tableLineWidth: 0.1, margin: { top: 25 },
+                    didParseCell: (data) => {
+                        if (data.row.index === 0 && data.cell.section === 'head') {
+                           doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+                           doc.text(entity.name, 15, data.cell.y - 4);
+                        }
+                    }
+                });
+                lastY = doc.autoTable.previous.finalY + 10;
+            });
 
-        if (schedule.unassigned.length > 0) {
-             if (yPosition > pageHeight - 20) {
-                doc.addPage();
-                yPosition = 20;
-            }
-            doc.setFontSize(12);
-            doc.setFont('helvetica', 'italic');
-            doc.text(`Player sitting out: ${schedule.unassigned.map(p => p.name).join(', ')}`, leftMargin, yPosition);
+            addHeaderAndFooter();
+            doc.save('pickleball_schedule.pdf');
+        } catch (err) {
+            console.error(err);
+            setError("Failed to load PDF libraries. Please check your internet connection and try again.");
+        } finally {
+            setIsExportingPdf(false);
         }
-
-        doc.save('pickleball_schedule.pdf');
     };
     
     // --- Memoized Selectors for Schedule Views ---
@@ -672,8 +740,12 @@ export default function App() {
                         <button onClick={exportToCSV} className="w-full sm:w-auto bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2">
                            <ArrowDownTrayIcon /> Export as CSV
                         </button>
-                        <button onClick={exportToPDF} className="w-full sm:w-auto bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2">
-                           <DocumentArrowDownIcon /> Export as PDF
+                        <button 
+                            onClick={exportToPDF} 
+                            disabled={isExportingPdf}
+                            className="w-full sm:w-auto bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        >
+                           <DocumentArrowDownIcon /> {isExportingPdf ? 'Generating PDF...' : (pdfScriptsLoaded ? 'Export as PDF' : 'Loading PDF libs...')}
                         </button>
                     </footer>
                 </div>
