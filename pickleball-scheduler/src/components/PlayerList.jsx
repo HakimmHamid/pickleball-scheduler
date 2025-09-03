@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { EditIcon, DeleteIcon, DuplicateIcon, CheckIcon } from './Icons';
+import { EditIcon, DeleteIcon, DuplicateIcon, CheckIcon, ShuffleIcon } from './Icons';
 
-export default function PlayerList({ players, setPlayers }) {
+export default function PlayerList({ players, setPlayers, onShuffle }) {
     const [newPlayerName, setNewPlayerName] = useState("");
     const [showPasteBox, setShowPasteBox] = useState(false);
     const [pastedNames, setPastedNames] = useState("");
@@ -126,36 +126,45 @@ export default function PlayerList({ players, setPlayers }) {
                 </div>
             )}
             {error && <p className="text-red-500 text-center mb-2 text-sm">{error}</p>}
-            <ul className="space-y-2 max-h-60 overflow-y-auto">
-                {players.map(player => (
-                    <li key={player.id} className="flex items-center bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg">
-                        {editingPlayer && editingPlayer.id === player.id ? (
-                            <>
-                                <input
-                                    type="text"
-                                    value={editingPlayer.name}
-                                    onChange={(e) => setEditingPlayer({ ...editingPlayer, name: e.target.value })}
-                                    className="flex-grow bg-white dark:bg-gray-600 border-2 border-[#6BCB77] rounded-md px-2 py-1 text-sm"
-                                    autoFocus
-                                />
-                                <div className="flex items-center ml-2 space-x-2">
-                                    <button onClick={handleSaveEdit} className="text-green-500 hover:text-green-600"><CheckIcon /></button>
-                                    <button onClick={handleCancelEdit} className="text-red-500 hover:text-red-600"><DeleteIcon /></button>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <span className="flex-grow font-medium text-sm">{player.name}</span>
-                                <div className="flex items-center space-x-3 text-gray-500 dark:text-gray-400">
-                                    <button onClick={() => handleStartEdit(player)} className="hover:text-[#6BCB77]"><EditIcon /></button>
-                                    <button onClick={() => handleDuplicatePlayer(player.name)} className="hover:text-green-500"><DuplicateIcon /></button>
-                                    <button onClick={() => handleDeletePlayer(player.id)} className="hover:text-red-500"><DeleteIcon /></button>
-                                </div>
-                            </>
-                        )}
-                    </li>
-                ))}
-            </ul>
+            
+            <div className="mt-4 border-t dark:border-gray-700 pt-4">
+                <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-semibold text-gray-800 dark:text-gray-200">Current Players ({players.length})</h3>
+                    <button onClick={onShuffle} className="text-sm font-medium text-[#6BCB77] hover:underline dark:text-[#86d994] flex items-center gap-1">
+                        <ShuffleIcon className="w-4 h-4" /> Shuffle
+                    </button>
+                </div>
+                <ul className="space-y-2 max-h-60 overflow-y-auto">
+                    {players.map(player => (
+                        <li key={player.id} className="flex items-center bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg">
+                            {editingPlayer && editingPlayer.id === player.id ? (
+                                <>
+                                    <input
+                                        type="text"
+                                        value={editingPlayer.name}
+                                        onChange={(e) => setEditingPlayer({ ...editingPlayer, name: e.target.value })}
+                                        className="flex-grow bg-white dark:bg-gray-600 border-2 border-[#6BCB77] rounded-md px-2 py-1 text-sm"
+                                        autoFocus
+                                    />
+                                    <div className="flex items-center ml-2 space-x-2">
+                                        <button onClick={handleSaveEdit} className="text-green-500 hover:text-green-600"><CheckIcon /></button>
+                                        <button onClick={handleCancelEdit} className="text-red-500 hover:text-red-600"><DeleteIcon /></button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="flex-grow font-medium text-sm">{player.name}</span>
+                                    <div className="flex items-center space-x-3 text-gray-500 dark:text-gray-400">
+                                        <button onClick={() => handleStartEdit(player)} className="hover:text-[#6BCB77]"><EditIcon /></button>
+                                        <button onClick={() => handleDuplicatePlayer(player.name)} className="hover:text-green-500"><DuplicateIcon /></button>
+                                        <button onClick={() => handleDeletePlayer(player.id)} className="hover:text-red-500"><DeleteIcon /></button>
+                                    </div>
+                                </>
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            </div>
         </div>
     );
 }

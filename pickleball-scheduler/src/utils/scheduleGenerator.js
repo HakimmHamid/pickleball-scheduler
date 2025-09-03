@@ -1,16 +1,30 @@
-export function generateSchedule(players, gameType, numCourts) {
+export function generateSchedule(players, gameType, numCourts, predefinedTeams = []) {
     let teams = [];
     let unassignedPlayers = [];
 
     if (gameType === 'doubles') {
-        let shuffledPlayers = [...players].sort(() => 0.5 - Math.random());
-        if (shuffledPlayers.length % 2 !== 0) {
-            unassignedPlayers.push(shuffledPlayers.pop());
+        // Get IDs of players already in predefined teams
+        const predefinedPlayerIds = new Set(predefinedTeams.flat().map(p => p.id));
+        
+        // Filter out players who are not yet in a team
+        const remainingPlayers = players.filter(p => !predefinedPlayerIds.has(p.id));
+
+        // Shuffle and pair the remaining players
+        let shuffledRemaining = [...remainingPlayers].sort(() => 0.5 - Math.random());
+        
+        if (shuffledRemaining.length % 2 !== 0) {
+            unassignedPlayers.push(shuffledRemaining.pop());
         }
-        for (let i = 0; i < shuffledPlayers.length; i += 2) {
-            teams.push([shuffledPlayers[i], shuffledPlayers[i + 1]]);
+        
+        const newRandomTeams = [];
+        for (let i = 0; i < shuffledRemaining.length; i += 2) {
+            newRandomTeams.push([shuffledRemaining[i], shuffledRemaining[i + 1]]);
         }
-    } else {
+        
+        // Combine predefined teams with the new randomly paired teams
+        teams = [...predefinedTeams, ...newRandomTeams];
+
+    } else { // Singles logic remains the same
         teams = players.map(p => [p]);
     }
 

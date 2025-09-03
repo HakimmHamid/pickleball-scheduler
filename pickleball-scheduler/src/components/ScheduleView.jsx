@@ -1,11 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ChevronDownIcon, ChevronUpIcon, CheckIcon, DocumentArrowDownIcon } from './Icons';
+import { ChevronDownIcon, ChevronUpIcon, CheckIcon, DocumentArrowDownIcon, ArrowLeftIcon } from './Icons';
 
 export default function ScheduleView({ schedule, gameType, setView }) {
     const [scheduleView, setScheduleView] = useState('byRound');
     const [collapsedSections, setCollapsedSections] = useState([]);
     const [completedRounds, setCompletedRounds] = useState([]);
-    const [pdfScriptsLoaded, setPdfScriptsLoaded] = useState(false);
     const [isExportingPdf, setIsExportingPdf] = useState(false);
     const [error, setError] = useState('');
 
@@ -15,11 +14,6 @@ export default function ScheduleView({ schedule, gameType, setView }) {
             if (savedCompletedRounds) setCompletedRounds(JSON.parse(savedCompletedRounds));
         } catch (e) {
             console.error("Failed to parse from localStorage", e);
-        }
-
-        // Check if PDF scripts are already in the document head
-        if (window.jspdf && window.jspdf.jsPDF.autoTable) {
-            setPdfScriptsLoaded(true);
         }
     }, []);
 
@@ -44,7 +38,6 @@ export default function ScheduleView({ schedule, gameType, setView }) {
         );
     };
 
-    // Memoized selectors for different schedule views
     const memoizedScheduleByRound = useMemo(() => {
         if (!schedule) return {};
         return schedule.games.reduce((acc, game) => {
@@ -96,48 +89,30 @@ export default function ScheduleView({ schedule, gameType, setView }) {
         return byTeam;
     }, [schedule, gameType]);
 
-    // PDF Export Function (with fixes)
     const exportToPDF = async () => {
         if (isExportingPdf) return;
         if (!schedule || !schedule.games) return;
         setError('');
         setIsExportingPdf(true);
-
-        const loadScript = (src) => new Promise((resolve, reject) => {
-            if (document.querySelector(`script[src="${src}"]`)) return resolve();
-            const script = document.createElement('script');
-            script.src = src;
-            script.onload = resolve;
-            script.onerror = () => reject(new Error(`Script load error for ${src}`));
-            document.head.appendChild(script);
-        });
-
+    
         try {
-            if (!pdfScriptsLoaded) {
-                await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-                await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
-                setPdfScriptsLoaded(true);
-            }
-
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             const pageHeight = doc.internal.pageSize.height;
             const themeColor = "#6BCB77";
-            let lastY = 25; // Initial Y position
-
-            // --- Header ---
+            let lastY = 25;
+    
             doc.setFontSize(20);
             doc.setFont('helvetica', 'bold');
             doc.text("Match Flow", doc.internal.pageSize.width / 2, 15, { align: 'center' });
             doc.setDrawColor(themeColor);
             doc.line(15, 18, doc.internal.pageSize.width - 15, 18);
-
-            // --- Schedule by Round ---
+    
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
             doc.text("Schedule by Round", 15, lastY + 10);
             lastY += 15;
-
+    
             Object.entries(memoizedScheduleByRound).forEach(([round, games]) => {
                 const isRoundComplete = completedRounds.includes(parseInt(round, 10));
                 const head = [['Court', 'Team 1', 'Team 2']];
@@ -147,40 +122,38 @@ export default function ScheduleView({ schedule, gameType, setView }) {
                 doc.setFont('helvetica', 'bold');
                 doc.text(`${isRoundComplete ? "✅ " : ""}Round ${round}`, 15, lastY + 5);
                 lastY += 7;
-
+    
                 doc.autoTable({
                     head, body, startY: lastY, headStyles: { fillColor: themeColor }, tableLineColor: [230, 230, 230], tableLineWidth: 0.1,
                 });
                 lastY = doc.autoTable.previous.finalY + 10;
             });
-
-            // --- Schedule by Court ---
+    
             doc.addPage();
             lastY = 25;
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
             doc.text("Schedule by Court", 15, lastY);
             lastY += 5;
-
+    
             Object.entries(memoizedScheduleByCourt).forEach(([court, games]) => {
                 const head = [['Round', 'Team 1', 'Team 2']];
                 const body = games.map(game => {
                     const isRoundComplete = completedRounds.includes(game.round);
                     return [`${isRoundComplete ? "✅ " : ""}Round ${game.round}`, game.team1.map(p => p.name).join(' & '), game.team2.map(p => p.name).join(' & ')];
                 });
-
+    
                 doc.setFontSize(12);
                 doc.setFont('helvetica', 'bold');
                 doc.text(`Court ${court}`, 15, lastY + 5);
                 lastY += 7;
-
+    
                 doc.autoTable({
                     head, body, startY: lastY, headStyles: { fillColor: themeColor }, tableLineColor: [230, 230, 230], tableLineWidth: 0.1,
                 });
                 lastY = doc.autoTable.previous.finalY + 10;
             });
-
-            // --- Schedule by Player/Team ---
+    
             doc.addPage();
             lastY = 25;
             const entityType = gameType === 'doubles' ? 'Team' : 'Player';
@@ -197,24 +170,23 @@ export default function ScheduleView({ schedule, gameType, setView }) {
                     const opponent = gameType === 'doubles' ? game.opponent : (game.team1.some(p => p.id === entity.id) ? game.team2 : game.team1);
                     return [`${isRoundComplete ? "✅ " : ""}Round ${game.round}`, `Court ${game.court}`, opponent.map(p => p.name).join(' & ')];
                 });
-
+    
                 if (lastY + (body.length * 10) + 30 > pageHeight) {
                     doc.addPage();
                     lastY = 25;
                 }
-
+    
                 doc.setFontSize(12);
                 doc.setFont('helvetica', 'bold');
                 doc.text(entity.name, 15, lastY + 5);
                 lastY += 7;
-
+    
                 doc.autoTable({
                     head, body, startY: lastY, headStyles: { fillColor: themeColor }, tableLineColor: [230, 230, 230], tableLineWidth: 0.1,
                 });
                 lastY = doc.autoTable.previous.finalY + 10;
             });
-
-            // --- Footer with Page Numbers ---
+    
             const pageCount = doc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
@@ -223,11 +195,11 @@ export default function ScheduleView({ schedule, gameType, setView }) {
                 const footerText = `Page ${i} of ${pageCount} | Generated: ${new Date().toLocaleDateString()}`;
                 doc.text(footerText, doc.internal.pageSize.width / 2, pageHeight - 10, { align: 'center' });
             }
-
+    
             doc.save('sports_schedule.pdf');
         } catch (err) {
             console.error(err);
-            setError("Failed to load PDF libraries. Please check your internet connection and try again.");
+            setError("Failed to generate PDF. Please try again.");
         } finally {
             setIsExportingPdf(false);
         }
@@ -240,6 +212,19 @@ export default function ScheduleView({ schedule, gameType, setView }) {
                     <h1 className="text-3xl md:text-4xl font-bold text-[#6BCB77] dark:text-[#86d994]">Match Flow</h1>
                     <p className="text-gray-600 dark:text-gray-400 mt-1">Generated Schedule</p>
                 </header>
+
+                <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
+                    <button onClick={() => setView('setup')} className="w-full sm:w-auto bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2">
+                        <ArrowLeftIcon /> Back to Setup
+                    </button>
+                    <button 
+                        onClick={exportToPDF} 
+                        disabled={isExportingPdf}
+                        className="w-full sm:w-auto bg-[#6BCB77] hover:bg-[#5aa764] text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                       <DocumentArrowDownIcon /> {isExportingPdf ? 'Generating...' : 'Export as PDF'}
+                    </button>
+                </div>
 
                 <div className="flex justify-center mb-6">
                     <div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1 flex-wrap justify-center">
@@ -269,7 +254,6 @@ export default function ScheduleView({ schedule, gameType, setView }) {
                 )}
                 {error && <p className="text-red-500 text-center mb-4 text-sm">{error}</p>}
                 <div className="space-y-4">
-                    {/* Render schedule based on the selected view */}
                     {scheduleView === 'byRound' && Object.entries(memoizedScheduleByRound).map(([round, games]) => {
                         const sectionId = `round-${round}`;
                         const isCollapsed = collapsedSections.includes(sectionId);
@@ -406,19 +390,6 @@ export default function ScheduleView({ schedule, gameType, setView }) {
                         );
                     })}
                 </div>
-
-                <footer className="mt-8 flex flex-col sm:flex-row flex-wrap gap-4 justify-center">
-                    <button onClick={() => setView('setup')} className="w-full sm:w-auto bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200">
-                        Back to Setup
-                    </button>
-                    <button 
-                        onClick={exportToPDF} 
-                        disabled={isExportingPdf}
-                        className="w-full sm:w-auto bg-[#6BCB77] hover:bg-[#5aa764] text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    >
-                       <DocumentArrowDownIcon /> {isExportingPdf ? 'Generating PDF...' : (pdfScriptsLoaded ? 'Export as PDF' : 'Loading PDF libs...')}
-                    </button>
-                </footer>
             </div>
         </div>
     );
