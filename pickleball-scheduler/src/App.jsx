@@ -3,7 +3,8 @@ import PlayerList from './components/PlayerList';
 import Settings from './components/Settings';
 import ScheduleView from './components/ScheduleView';
 import { generateSchedule as generate } from './utils/scheduleGenerator';
-import { ChevronUpIcon, ChevronDownIcon } from './components/Icons';
+import { ChevronUpIcon, ChevronDownIcon, ChatBubbleLeftRightIcon } from './components/Icons';
+import GoogleFeedbackForm from './components/GoogleFeedbackForm';
 
 export default function App() {
     const [players, setPlayers] = useState([]);
@@ -13,6 +14,7 @@ export default function App() {
     const [view, setView] = useState('setup'); // 'setup' or 'schedule'
     const [error, setError] = useState('');
     const [openSection, setOpenSection] = useState('players');
+    const [showFeedbackForm, setShowFeedbackForm] = useState(false); // State for the form
 
     // Load data from localStorage on initial render
     useEffect(() => {
@@ -111,12 +113,39 @@ export default function App() {
                             Start New (Clear Players)
                         </button>
                     </div>
+                    {/* Feedback button moved below "Start New" */}
+                    <button
+                        onClick={() => setShowFeedbackForm(true)}
+                        className="w-full mt-3 bg-transparent hover:bg-green-50 dark:hover:bg-gray-700 text-[#6BCB77] border border-[#6BCB77] font-bold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                    >
+                        <ChatBubbleLeftRightIcon className="w-5 h-5" /> Give Feedback & Suggest Features
+                    </button>
                 </div>
 
-                <footer className="text-center text-gray-500 dark:text-gray-400 text-xs mt-4">
+                <footer className="text-center text-gray-500 dark:text-gray-400 text-xs mt-4 space-y-1">
                     <p>&copy; {new Date().getFullYear()} Match Flow</p>
+                    <p>
+                        Created by Hakim Hamid | 
+                        <a href="mailto:hakimmhamiddev@gmail.com" className="text-[#6BCB77] hover:underline ml-1">Email</a> |
+                        <a href="https://twitter.com/hakimmhamiddev" target="_blank" rel="noopener noreferrer" className="text-[#6BCB77] hover:underline ml-1">Twitter</a>
+                    </p>
                 </footer>
             </div>
+
+            {/* --- Feedback Form Modal --- */}
+            {showFeedbackForm && (
+                <div 
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" 
+                    onClick={() => setShowFeedbackForm(false)}
+                >
+                    <div 
+                        className="bg-white dark:bg-gray-800 rounded-xl shadow-lg w-full max-w-lg relative"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <GoogleFeedbackForm setShowForm={setShowFeedbackForm} />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

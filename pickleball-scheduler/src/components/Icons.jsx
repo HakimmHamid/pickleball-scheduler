@@ -47,3 +47,19 @@ export const DocumentArrowDownIcon = ({ className = "w-5 h-5" }) => (
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l3 3m0 0l3-3m-3 3V2.25" />
     </svg>
 );
+
+export function ChatBubbleLeftRightIcon(props) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5" {...props}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.129 3.373-.021A4.5 4.5 0 0011.25 18a4.5 4.5 0 004.097-2.703 11.959 11.959 0 013.373.021 4.5 4.5 0 002.707-3.228c.234-1.604.094-3.231-.077-4.16C21.668 7.348 20.018 6 18 6h-.071A2.25 2.25 0 0015 3.75v-.5c0-.621-.504-1.125-1.125-1.125H12.75c-.621 0-1.125.504-1.125 1.125v.5c0 .621-.504 1.125-1.125 1.125H10.5M16.5 6h.008v.008h-.008V6zM12 6h.008v.008H12V6zM9.75 9h.008v.008H9.75V9zM7.5 9h.008v.008H7.5V9zm6.336 10.879a.45.45 0 01-.004 0L12 21.75l-.332-.218a.45.45 0 01-.004 0 39.465 39.465 0 01-2.054-1.39A2.25 2.25 0 009 19.25v-2.25m3.75-10.5H12M12 10.5H7.5" />
+        </svg>
+    );
+}
+
+export function XMarkIcon(props) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6" {...props}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+    );
+}
