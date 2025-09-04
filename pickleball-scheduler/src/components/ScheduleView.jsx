@@ -7,8 +7,20 @@ export default function ScheduleView({ schedule, gameType, setView }) {
     const [completedRounds, setCompletedRounds] = useState([]);
     const [isExportingPdf, setIsExportingPdf] = useState(false);
     const [error, setError] = useState('');
+    const [logoDataUrl, setLogoDataUrl] = useState(null);
 
     useEffect(() => {
+        const img = new Image();
+        img.src = '/net.svg';
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 50;
+            canvas.height = 50;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, 50, 50);
+            setLogoDataUrl(canvas.toDataURL('image/png'));
+        };
+
         try {
             const savedCompletedRounds = localStorage.getItem('sportsSchedulerCompletedRounds');
             if (savedCompletedRounds) setCompletedRounds(JSON.parse(savedCompletedRounds));
@@ -99,14 +111,18 @@ export default function ScheduleView({ schedule, gameType, setView }) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             const pageHeight = doc.internal.pageSize.height;
+            const pageWidth = doc.internal.pageSize.width;
             const themeColor = "#6BCB77";
             let lastY = 25;
     
+            if (logoDataUrl) {
+                doc.addImage(logoDataUrl, 'PNG', 15, 8, 12, 12);
+            }
             doc.setFontSize(20);
             doc.setFont('helvetica', 'bold');
-            doc.text("Match Flow", doc.internal.pageSize.width / 2, 15, { align: 'center' });
+            doc.text("Match Flow", pageWidth / 2, 15, { align: 'center' });
             doc.setDrawColor(themeColor);
-            doc.line(15, 18, doc.internal.pageSize.width - 15, 18);
+            doc.line(15, 18, pageWidth - 15, 18);
     
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
@@ -192,8 +208,12 @@ export default function ScheduleView({ schedule, gameType, setView }) {
                 doc.setPage(i);
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'normal');
-                const footerText = `Page ${i} of ${pageCount} | Generated: ${new Date().toLocaleDateString()}`;
-                doc.text(footerText, doc.internal.pageSize.width / 2, pageHeight - 10, { align: 'center' });
+                
+                const footerText1 = `Page ${i} of ${pageCount} | Generated: ${new Date().toLocaleDateString()}`;
+                doc.text(footerText1, pageWidth / 2, pageHeight - 15, { align: 'center' });
+                
+                const footerText2 = "Created by Hakim Hamid | hakimmhamiddev@gmail.com | @hakimmhamiddev";
+                doc.text(footerText2, pageWidth / 2, pageHeight - 10, { align: 'center' });
             }
     
             doc.save('sports_schedule.pdf');
@@ -252,7 +272,7 @@ export default function ScheduleView({ schedule, gameType, setView }) {
                         <p>{schedule.unassigned.map(p => p.name).join(', ')} will be assigned in the next tournament if players change.</p>
                     </div>
                 )}
-                {error && <p className="text-red-500 text-center mb-4 text-sm">{error}</p>}
+                {error && <p className="text-red-500 text-center mb-2 text-sm">{error}</p>}
                 <div className="space-y-4">
                     {scheduleView === 'byRound' && Object.entries(memoizedScheduleByRound).map(([round, games]) => {
                         const sectionId = `round-${round}`;
